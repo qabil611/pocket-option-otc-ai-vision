@@ -28,15 +28,16 @@ steps:
   - name: Set up Android SDK
     uses: android-actions/setup-android@v3
 
-  - name: Install SDK packages
+  - name: Install Android SDK
     run: |
       sdkmanager --install \
         "platform-tools" \
         "platforms;android-35" \
         "build-tools;35.0.0"
 
-  - name: Check source ZIP
+  - name: Check ZIP file
     run: |
+      ls -la
       test -f POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip
       unzip -t POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip
 
@@ -45,42 +46,42 @@ steps:
       mkdir -p android-project
       unzip -q POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip -d android-project
 
-      GRADLE_FILE=$(find android-project -name settings.gradle -o -name settings.gradle.kts | head -1)
+      GRADLE_FILE=$(find android-project -name settings.gradle -o -name settings.gradle.kts -print -quit)
 
       if [ -z "$GRADLE_FILE" ]; then
-        echo "ERROR: Gradle project tapılmadı!"
-        find android-project -maxdepth 4 -type f
+        echo "Gradle project not found!"
+        find android-project -maxdepth 5 -type f
         exit 1
       fi
 
       PROJECT_DIR=$(dirname "$GRADLE_FILE")
       echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
 
-      echo "Android project: $PROJECT_DIR"
+      echo "Project found: $PROJECT_DIR"
 
-  - name: Build APK
+  - name: Build Android APK
     run: |
       cd "$PROJECT_DIR"
 
-      if [ -f ./gradlew ]; then
-        chmod +x ./gradlew
+      if [ -f gradlew ]; then
+        chmod +x gradlew
         ./gradlew assembleDebug --no-daemon
       else
-        gradle assembleDebug --no-daemon
+        echo "Gradle Wrapper not found!"
+        exit 1
       fi
 
-  - name: Find APK
+  - name: Locate APK
     run: |
-      find "$PROJECT_DIR" -type f -name "*.apk"
-
-      APK=$(find "$PROJECT_DIR" -type f -path "*/outputs/apk/debug/*.apk" | head -1)
+      APK=$(find "$PROJECT_DIR" -type f -path "*/outputs/apk/debug/*.apk" -print -quit)
 
       if [ -z "$APK" ]; then
-        echo "ERROR: APK yaradılmadı!"
+        echo "APK not found!"
         exit 1
       fi
 
       echo "APK_PATH=$APK" >> "$GITHUB_ENV"
+      echo "APK successfully created!"
 
   - name: Upload APK
     uses: actions/upload-artifact@v4

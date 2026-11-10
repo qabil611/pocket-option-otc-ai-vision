@@ -41,9 +41,21 @@ jobs:
             exit 1
           fi
 
-          chmod +x "$SDKMANAGER"
+          - name: Install Android SDK packages
+  run: |
+  SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+  
+      if [ ! -f "$SDKMANAGER" ]; then
+      echo "ERROR: sdkmanager tapılmadı!"
+      exit 1
+    fi
 
-          yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses || true
+    yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses || true
+
+    "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --install \
+      "platform-tools" \
+      "platforms;android-35" \
+      "build-tools;35.0.0"
 
           "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --install \
             "platform-tools" \

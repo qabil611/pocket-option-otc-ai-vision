@@ -1,91 +1,72 @@
 name: Build OTC AI Android APK
 
 on:
-workflow_dispatch:
-push:
-paths:
-- 'POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip'
-- '.github/workflows/build.yml'
+  workflow_dispatch:
+  push:
+    paths:
+      - 'POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip'
+      - '.github/workflows/build.yml'
 
 permissions:
-contents: read
+  contents: read
 
 jobs:
-build:
-name: Build Debug APK
-runs-on: ubuntu-24.04
+  build:
+    name: Build Debug APK
+    runs-on: ubuntu-24.04
 
-steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
 
-  - name: Set up Java 17
-    uses: actions/setup-java@v5
-    with:
-      distribution: temurin
-      java-version: '17'
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-  - name: Set up Android SDK
-    uses: android-actions/setup-android@v3
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
 
-  - name: Install Android SDK
-    run: |
-      sdkmanager --install \
-        "platform-tools" \
-        "platforms;android-35" \
-        "build-tools;35.0.0"
+      - name: Install SDK
+        run: |
+          yes | sdkmanager --licenses || true
+          sdkmanager --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
-  - name: Check ZIP file
-    run: |
-      ls -la
-      test -f POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip
-      unzip -t POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip
+      - name: Check ZIP
+        run: |
+          ls -la
+          test -f POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip
+          unzip -t POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip
 
-  - name: Extract Android project
-    run: |
-      mkdir -p android-project
-      unzip -q POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip -d android-project
+      - name: Extract project
+        run: |
+          mkdir -p android-project
+          unzip -q POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip -d android-project
+          find android-project -name settings.gradle -o -name settings.gradle.kts
 
-      GRADLE_FILE=$(find android-project -name settings.gradle -o -name settings.gradle.kts -print -quit)
+      - name: Locate Gradle project
+        run: |
+          FILE=$(find android-project \( -name settings.gradle -o -name settings.gradle.kts \) -print -quit)
+          if [ -z "$FILE" ]; then
+            echo "Gradle project not found"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$FILE")" >> "$GITHUB_ENV"
 
-      if [ -z "$GRADLE_FILE" ]; then
-        echo "Gradle project not found!"
-        find android-project -maxdepth 5 -type f
-        exit 1
-      fi
+      - name: Build APK
+        run: |
+          cd "$PROJECT_DIR"
+          if [ ! -f gradlew ]; then
+            echo "Gradle Wrapper missing"
+            exit 1
+          fi
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
 
-      PROJECT_DIR=$(dirname "$GRADLE_FILE")
-      echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
-      echo "Project found: $PROJECT_DIR"
-
-  - name: Build Android APK
-    run: |
-      cd "$PROJECT_DIR"
-
-      if [ -f gradlew ]; then
-        chmod +x gradlew
-        ./gradlew assembleDebug --no-daemon
-      else
-        echo "Gradle Wrapper not found!"
-        exit 1
-      fi
-
-  - name: Locate APK
-    run: |
-      APK=$(find "$PROJECT_DIR" -type f -path "*/outputs/apk/debug/*.apk" -print -quit)
-
-      if [ -z "$APK" ]; then
-        echo "APK not found!"
-        exit 1
-      fi
-
-      echo "APK_PATH=$APK" >> "$GITHUB_ENV"
-      echo "APK successfully created!"
-
-  - name: Upload APK
-    uses: actions/upload-artifact@v4
-    with:
-      name: POCKET-OPTION-OTC-AI-APK
-      path: ${{ env.APK_PATH }}
-      if-no-files-found: error
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: POCKET-OPTION-OTC-AI-APK
+          path: ${{ env.PROJECT_DIR }}/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error

@@ -1,11 +1,11 @@
 name: Build OTC AI Android APK
 
-on:
+'on':
 workflow_dispatch:
 push:
 paths:
-- 'POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip'
-- '.github/workflows/build.yml'
+- "POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip"
+- ".github/workflows/build.yml"
 
 jobs:
 build:
@@ -19,7 +19,7 @@ steps:
     uses: actions/setup-java@v4
     with:
       distribution: temurin
-      java-version: '17'
+      java-version: "17"
 
   - name: Set up Android SDK
     uses: android-actions/setup-android@v3
@@ -27,20 +27,14 @@ steps:
   - name: Install Android SDK packages
     run: |
       SDKMANAGER=$(find "$ANDROID_HOME/cmdline-tools" -name sdkmanager -type f | head -n 1)
-
       echo "SDK Manager: $SDKMANAGER"
-
       yes | "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --licenses || true
-
-      "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --install \
-        "platform-tools" \
-        "platforms;android-35" \
-        "build-tools;35.0.0"
+      "$SDKMANAGER" --sdk_root="$ANDROID_HOME" --install "platform-tools" "platforms;android-35" "build-tools;35.0.0"
 
   - name: Set up Gradle
     uses: gradle/actions/setup-gradle@v4
     with:
-      gradle-version: '8.7'
+      gradle-version: "8.7"
 
   - name: Extract Android project
     run: |

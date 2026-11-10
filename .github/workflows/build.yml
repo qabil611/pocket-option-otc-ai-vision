@@ -24,103 +24,58 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android SDK
+      - name: Accept Android licenses
         run: |
           yes | sdkmanager --licenses || true
-          sdkmanager --install \
+
+      - name: Install Android SDK
+        run: |
+          sdkmanager \
             "platform-tools" \
             "platforms;android-35" \
             "build-tools;35.0.0"
 
-      - name: Check Source ZIP
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.7'
+
+      - name: Check ZIP
         run: |
-          ls -lah
           test -f POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip
           unzip -t POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip
 
-      - name: Extract Android Project
+      - name: Extract project
         run: |
-          mkdir -p android-project
+          mkdir android-project
           unzip -q POCKET-OPTION-OTC-AI-V2-ANDROID-SOURCE.zip -d android-project
-          find android-project -name gradlew -type f
 
-      - name: Locate Gradle Project
+      - name: Find Android project
         run: |
-          FILE=$(find android-project \
-            \( -name settings.gradle -o -name settings.gradle.kts \) \
-            -print -quit)
-
-          if [ -z "$FILE" ]; then
-            echo "ERROR: settings.gradle not found"
+          PROJECT_DIR=$(find android-project -name settings.gradle -o -name settings.gradle.kts | head -1 | xargs dirname)
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "Android project not found"
             exit 1
           fi
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
 
-          PROJECT_DIR=$(dirname "$FILE")
-          echo "PROJECT_DIR=$PROJECT_DIR" >> "$GITHUB_ENV"
-
-          echo "Project found: $PROJECT_DIR"
-
-      - name: Check Gradle Wrapper
-        run: |
-          if [ ! -f "$PROJECT_DIR/gradlew" ]; then
-            echo "ERROR: gradlew missing"
-            exit 1
-          fi
-
-          chmod +x "$PROJECT_DIR/gradlew"
-
-      - name: Align Java and Kotlin JVM Targets
-        run: |
-          cat > "$RUNNER_TEMP/fix-targets.gradle" <<'EOF'
-          allprojects {
-              tasks.withType(JavaCompile).configureEach {
-                  sourceCompatibility = '17'
-                  targetCompatibility = '17'
-              }
-
-              tasks.configureEach { task ->
-                  if (task.hasProperty('kotlinOptions')) {
-                      task.kotlinOptions.jvmTarget = '17'
-                  }
-              }
-          }
-          EOF
-
-      - name: Build Debug APK
+      - name: Build APK
         run: |
           cd "$PROJECT_DIR"
-
-          ./gradlew \
-            --init-script "$RUNNER_TEMP/fix-targets.gradle" \
-            assembleDebug \
-            --no-daemon \
-            --stacktrace
-
-      - name: Find APK
-        run: |
-          mkdir -p "$GITHUB_WORKSPACE/output"
-
-          find "$PROJECT_DIR" \
-            -path '*/build/outputs/apk/debug/*.apk' \
-            -type f \
-            -exec cp {} "$GITHUB_WORKSPACE/output/" \;
-
-          if [ -z "$(ls -A "$GITHUB_WORKSPACE/output")" ]; then
-            echo "ERROR: APK was not generated"
-            exit 1
+          if [ -f gradlew ]; then
+            chmod +x gradlew
+            ./gradlew assembleDebug --no-daemon
+          else
+            gradle assembleDebug --no-daemon
           fi
-
-          ls -lh "$GITHUB_WORKSPACE/output"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: POCKET-OPTION-OTC-AI-APK
-          path: output/*.apk
+          path: android-project/**/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-          retention-days: 14

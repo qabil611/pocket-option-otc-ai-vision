@@ -1,0 +1,12 @@
+{
+  "name": "Pocket Option OTC AI PRO",
+  "short_name": "OTC AI",
+  "description": "Pocket Option OTC AI Market Scanner",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#07101e",
+  "theme_color": "#07101e",
+  "lang": "az"
+}
